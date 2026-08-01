@@ -1,2 +1,44 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /><title>My account — FORM/FORWARD</title><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><link rel="stylesheet" href="../styles.css" /><style>.dashboard{padding:70px 5vw 110px;max-width:1200px;margin:auto}.dashboard h1{font-size:clamp(43px,7vw,80px);letter-spacing:-.07em;line-height:.9;margin:30px 0 60px}.dash-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}.panel{background:#fff;padding:30px;min-height:200px}.panel h2{margin:0 0 20px;font-size:22px;letter-spacing:-.04em}.booking{display:flex;gap:15px;border-top:1px solid #ddd;padding-top:15px}.date{background:var(--lime);font-weight:800;padding:11px;text-align:center;line-height:1}.date small{display:block;font-size:10px;margin-bottom:4px}.empty{color:var(--muted)}.payment{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ddd}.account-nav{background:var(--ink);color:#fff;padding:20px 5vw;display:flex;gap:28px}.account-nav a{color:#c7f04f;text-decoration:none;font-size:13px}@media(max-width:700px){.dash-grid{grid-template-columns:1fr}}</style></head><body><header class="nav"><a class="wordmark" href="../index.html">FORM<span>/</span>FORWARD</a><a href="../index.html">Back to site</a></header><nav class="account-nav" aria-label="Account sections"><a href="#overview">Overview</a><a href="#bookings">Bookings</a><a href="#payments">Payments</a></nav><main class="dashboard" id="overview"><p class="eyebrow">MEMBER AREA</p><h1>Welcome back,<br /><em>Member.</em></h1><div class="dash-grid"><section class="panel"><h2>Your next session</h2><div class="booking"><div class="date"><small>OCT</small>14</div><div><strong>1:1 Personal Training</strong><br /><span class="empty">10:00 – 11:00 · Location to be confirmed</span></div></div><p><button class="button" onclick="alert('Connect your booking provider here, e.g. Calendly or a custom Cloudflare booking API.')">Manage booking <span>→</span></button></p></section><section class="panel"><h2>Your programme</h2><p><strong>Performance</strong></p><p class="empty">Your latest plan and coach check-in will appear here after activation.</p></section><section class="panel" id="bookings"><h2>Bookings</h2><p class="empty">Once your booking integration is connected, members can book, reschedule and cancel sessions here.</p></section><section class="panel" id="payments"><h2>Payments &amp; orders</h2><div class="payment"><span>Payment history</span><strong>Secure</strong></div><p class="empty">Completed Stripe payments will appear here. A “Manage billing” button should open the Stripe customer portal.</p></section></div></main><footer><a class="wordmark" href="../index.html">FORM<span>/</span>FORWARD</a><p>© 2026 · Personal training, made personal.</p></footer></body></html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Personal training programmes designed around your goals." />
+    <title>FORM / FORWARD — Personal Training</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="wordmark" href="#top">FORM<span>/</span>FORWARD</a>
+      <nav aria-label="Main navigation"><a href="#programmes">Programmes</a><a href="#approach">Approach</a><a href="#contact">Contact</a></nav>
+      <button class="account" data-account>My account <span>↗</span></button>
+    </header>
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">ONLINE PERSONAL TRAINING · BUILT AROUND YOU</p>
+        <h1>Move with<br /><em>purpose.</em></h1>
+        <div class="hero-bottom"><p>Coaching that meets you where you are—and takes you further.</p><a class="button" href="#programmes">Explore programmes <span>↓</span></a></div>
+        <div class="hero-shape shape-one"></div><div class="hero-shape shape-two"></div>
+      </section>
+      <section class="intro" id="approach">
+        <p class="eyebrow">01 / THE APPROACH</p>
+        <h2>Training should fit your life, not take it over.</h2>
+        <p class="body-copy">A clear plan, expert guidance and accountability that stays human. Whether you are starting fresh or sharpening your performance, we build momentum together.</p>
+      </section>
+      <section class="programmes" id="programmes">
+        <div class="section-head"><p class="eyebrow">02 / PROGRAMMES</p><p>Choose your starting point. Every programme begins with a consultation.</p></div>
+        <article class="programme"><span class="number">01</span><div><h3>Foundation</h3><p>Build confidence, consistency and a routine that lasts.</p></div><div class="price">From £129 <small>/ month</small></div><button class="select-programme" data-programme="foundation">Choose <span>→</span></button></article>
+        <article class="programme featured"><span class="number">02</span><div><h3>Performance</h3><p>Structured coaching for ambitious strength, fitness or physique goals.</p></div><div class="price">From £219 <small>/ month</small></div><button class="select-programme" data-programme="performance">Choose <span>→</span></button></article>
+        <article class="programme"><span class="number">03</span><div><h3>1:1 Sessions</h3><p>Focused, in-person coaching with a plan built around you.</p></div><div class="price">From £65 <small>/ session</small></div><button class="select-programme" data-programme="sessions">Choose <span>→</span></button></article>
+      </section>
+      <section class="steps"><p class="eyebrow">03 / WHAT HAPPENS NEXT</p><div class="steps-grid"><div><b>01</b><h3>Choose</h3><p>Select a programme and securely create your account.</p></div><div><b>02</b><h3>Start</h3><p>Complete your consultation and receive your personal plan.</p></div><div><b>03</b><h3>Progress</h3><p>Book sessions, track payments and stay accountable in one place.</p></div></div></section>
+      <section class="cta" id="contact"><p class="eyebrow">READY WHEN YOU ARE</p><h2>Make your next<br />move count.</h2><a class="button light" href="mailto:hello@example.com">Start a conversation <span>↗</span></a></section>
+    </main>
+    <footer><a class="wordmark" href="#top">FORM<span>/</span>FORWARD</a><p>© 2026 · Personal training, made personal.</p><a href="mailto:hello@example.com">hello@example.com</a></footer>
+    <dialog id="account-dialog"><button class="close" aria-label="Close">×</button><p class="eyebrow">MEMBER AREA</p><h2>Your training, all in one place.</h2><p>Sign in or create an account to view your programme, upcoming bookings, orders and payment history.</p><button class="button" data-sign-in>Sign in / create account <span>→</span></button></dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

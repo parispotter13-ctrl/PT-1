@@ -1,8 +1,3 @@
 name = "form-forward"
 compatibility_date = "2026-08-01"
 pages_build_output_dir = "."
-
-[[d1_databases]]
-binding = "DB"
-database_name = "form-forward"
-database_id = "REPLACE_AFTER_CREATING_D1"

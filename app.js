@@ -1,26 +1,46 @@
-const dialog = document.querySelector('#account-dialog');
+window.addEventListener('load', async () => {
+  await Clerk.load({
+    ui: { ClerkUI: window.__internal_ClerkUICtor },
+  });
 
-const paymentLinks = {
-  foundation: 'https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00',
-  performance: 'https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00',
-  sessions: 'https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00',
-};
+  const dialog = document.querySelector('#account-dialog');
 
-document.querySelector('[data-account]').addEventListener('click', () => dialog.showModal());
-document.querySelector('.close').addEventListener('click', () => dialog.close());
+  const paymentLinks = {
+    foundation: 'https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00',
+    performance: 'PASTE-YOUR-PERFORMANCE-STRIPE-LINK-HERE',
+    sessions: 'PASTE-YOUR-SESSIONS-STRIPE-LINK-HERE',
+  };
 
-document.querySelector('[data-sign-in]').addEventListener('click', () => {
-  window.location.href = '/account/';
-});
-
-document.querySelectorAll('.select-programme').forEach((button) => {
-  button.addEventListener('click', () => {
-    const url = paymentLinks[button.dataset.programme];
-
-    if (url && !url.includes('REPLACE_')) {
-      window.location.assign(url);
+  document.querySelector('[data-account]').addEventListener('click', () => {
+    if (Clerk.isSignedIn) {
+      window.location.href = '/account/';
     } else {
-      alert('Checkout is being configured. Please try again shortly.');
+      Clerk.openSignIn({
+        afterSignInUrl: `${window.location.origin}/account/`,
+        afterSignUpUrl: `${window.location.origin}/account/`,
+      });
     }
+  });
+
+  document.querySelector('.close').addEventListener('click', () => dialog.close());
+
+  document.querySelector('[data-sign-in]').addEventListener('click', () => {
+    Clerk.openSignIn({
+      afterSignInUrl: `${window.location.origin}/account/`,
+      afterSignUpUrl: `${window.location.origin}/account/`,
+    });
+  });
+
+  document.querySelectorAll('.select-programme').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!Clerk.isSignedIn) {
+        Clerk.openSignUp({
+          afterSignUpUrl: window.location.href,
+        });
+        return;
+      }
+
+      window.location.assign(paymentLinks[button.dataset.programme]);
+    });
   });
 });

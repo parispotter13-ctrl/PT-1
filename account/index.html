@@ -4,12 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My account — FORM/FORWARD</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css" />
+
   <style>
-    .dashboard{padding:70px 5vw 110px;max-width:1200px;margin:auto}.dashboard h1{font-size:clamp(43px,7vw,80px);letter-spacing:-.07em;line-height:.9;margin:30px 0 60px}.dash-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}.panel{background:#fff;padding:30px;min-height:200px}.panel h2{margin:0 0 20px;font-size:22px;letter-spacing:-.04em}.booking{display:flex;gap:15px;border-top:1px solid #ddd;padding-top:15px}.date{background:var(--lime);font-weight:800;padding:11px;text-align:center;line-height:1}.date small{display:block;font-size:10px;margin-bottom:4px}.empty{color:var(--muted)}.payment{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ddd}.account-nav{background:var(--ink);color:#fff;padding:20px 5vw;display:flex;gap:28px}.account-nav a{color:#c7f04f;text-decoration:none;font-size:13px}@media(max-width:700px){.dash-grid{grid-template-columns:1fr}}
+    .dashboard{padding:70px 5vw 110px;max-width:1200px;margin:auto}
+    .dashboard h1{font-size:clamp(43px,7vw,80px);letter-spacing:-.07em;line-height:.9;margin:30px 0 60px}
+    .dash-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}
+    .panel{background:#fff;padding:30px;min-height:200px}
+    .panel h2{margin:0 0 20px;font-size:22px;letter-spacing:-.04em}
+    .empty{color:var(--muted)}
+    .payment{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid #ddd}
+    .payment:first-of-type{border-top:1px solid #ddd}
+    .status{font:11px 'DM Mono',monospace;text-transform:uppercase;color:#587700}
+    .account-nav{background:var(--ink);color:#fff;padding:20px 5vw;display:flex;gap:28px}
+    .account-nav a{color:#c7f04f;text-decoration:none;font-size:13px}
+    @media(max-width:700px){.dash-grid{grid-template-columns:1fr}}
   </style>
 </head>
 
@@ -31,32 +44,31 @@
     <h1>Welcome back,<br><em id="member-name">Member.</em></h1>
 
     <div class="dash-grid">
-      <section class="panel">
-        <h2>Your next session</h2>
-        <div class="booking">
-          <div class="date"><small>OCT</small>14</div>
-          <div>
-            <strong>1:1 Personal Training</strong><br>
-            <span class="empty">10:00 – 11:00 · Location to be confirmed</span>
-          </div>
+      <section class="panel" id="bookings">
+        <h2>Your bookings</h2>
+        <div id="bookings-list">
+          <p class="empty">Loading bookings…</p>
         </div>
       </section>
 
       <section class="panel">
         <h2>Your programme</h2>
-        <p><strong>Performance</strong></p>
-        <p class="empty">Your latest plan and coach check-in will appear here after activation.</p>
-      </section>
-
-      <section class="panel" id="bookings">
-        <h2>Bookings</h2>
-        <p class="empty">Your confirmed sessions will appear here.</p>
+        <div id="programme-summary">
+          <p class="empty">Loading your programme…</p>
+        </div>
       </section>
 
       <section class="panel" id="payments">
         <h2>Payments &amp; orders</h2>
-        <div class="payment"><span>Payment history</span><strong>Secure</strong></div>
-        <p class="empty">Completed Stripe payments will appear here after the payment-history connection is added.</p>
+        <div id="orders-list">
+          <p class="empty">Loading payment history…</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Need support?</h2>
+        <p class="empty">Need to change a booking or ask a question? Contact your coach directly.</p>
+        <a class="button" href="mailto:hello@example.com">Email your coach <span>↗</span></a>
       </section>
     </div>
   </main>
@@ -76,25 +88,108 @@
     type="text/javascript"></script>
 
   <script>
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatAmount(amount) {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+      }).format((amount || 0) / 100);
+    }
+
     window.addEventListener("load", async () => {
       try {
         await Clerk.load({
-          ui: { ClerkUI: window.__internal_ClerkUICtor }
+          ui: { ClerkUI: window.__internal_ClerkUICtor },
         });
 
         if (!Clerk.isSignedIn) {
           Clerk.openSignIn({
             afterSignInUrl: window.location.href,
-            afterSignUpUrl: window.location.href
+            afterSignUpUrl: window.location.href,
           });
           return;
         }
 
-        const firstName = Clerk.user.firstName || "Member";
-        document.querySelector("#member-name").textContent = `${firstName}.`;
+        document.querySelector("#member-name").textContent =
+          `${Clerk.user.firstName || "Member"}.`;
+
         Clerk.mountUserButton(document.querySelector("#user-button"));
+
+        const token = await Clerk.session.getToken();
+
+        const response = await fetch("/api/account", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load account data.");
+        }
+
+        const data = await response.json();
+        const orders = data.orders || [];
+        const bookings = data.bookings || [];
+
+        const bookingsList = document.querySelector("#bookings-list");
+
+        if (bookings.length === 0) {
+          bookingsList.innerHTML =
+            '<p class="empty">No sessions booked yet.</p>';
+        } else {
+          bookingsList.innerHTML = bookings.map((booking) => `
+            <div class="payment">
+              <span>${new Date(booking.starts_at).toLocaleString("en-GB")}</span>
+              <strong class="status">${escapeHtml(booking.status)}</strong>
+            </div>
+          `).join("");
+        }
+
+        const ordersList = document.querySelector("#orders-list");
+
+        if (orders.length === 0) {
+          ordersList.innerHTML =
+            '<p class="empty">No payments or orders yet.</p>';
+        } else {
+          ordersList.innerHTML = orders.map((order) => `
+            <div class="payment">
+              <span>
+                <strong>${escapeHtml(order.programme)}</strong><br>
+                <small class="empty">${new Date(order.created_at).toLocaleDateString("en-GB")}</small>
+              </span>
+              <span>
+                <strong>${formatAmount(order.amount)}</strong><br>
+                <small class="status">${escapeHtml(order.status)}</small>
+              </span>
+            </div>
+          `).join("");
+        }
+
+        const activeOrder = orders.find((order) => order.status === "paid");
+
+        document.querySelector("#programme-summary").innerHTML = activeOrder
+          ? `<p><strong>${escapeHtml(activeOrder.programme)}</strong></p>
+             <p class="empty">Your programme is active. Your coach will share your next steps shortly.</p>`
+          : '<p class="empty">Choose a programme to begin your training.</p>';
       } catch (error) {
-        console.error("Unable to load account:", error);
+        console.error(error);
+
+        document.querySelector("#bookings-list").innerHTML =
+          '<p class="empty">Your bookings could not be loaded yet.</p>';
+
+        document.querySelector("#orders-list").innerHTML =
+          '<p class="empty">Your payment history could not be loaded yet.</p>';
+
+        document.querySelector("#programme-summary").innerHTML =
+          '<p class="empty">Your programme details could not be loaded yet.</p>';
       }
     });
   </script>

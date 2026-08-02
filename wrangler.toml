@@ -1,3 +1,8 @@
 name = "form-forward"
 compatibility_date = "2026-08-01"
 pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "form-forward"
+database_id = "074b967a-f4ac-4d1e-8845-96d078257568"

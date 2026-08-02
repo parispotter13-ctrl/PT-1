@@ -1,46 +1,91 @@
-window.addEventListener('load', async () => {
-  await Clerk.load({
-    ui: { ClerkUI: window.__internal_ClerkUICtor },
+const paymentLinks = {
+  foundation: "https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00",
+  performance: "PASTE-YOUR-PERFORMANCE-STRIPE-LINK-HERE",
+  sessions: "PASTE-YOUR-1-TO-1-SESSION-STRIPE-LINK-HERE",
+};
+
+const dialog = document.querySelector("#account-dialog");
+const accountButton = document.querySelector("[data-account]");
+const closeButton = document.querySelector(".close");
+const signInButton = document.querySelector("[data-sign-in]");
+const programmeButtons = document.querySelectorAll(".select-programme");
+
+async function loadClerk() {
+  if (!window.Clerk) {
+    console.error("Clerk did not load.");
+    return false;
+  }
+
+  try {
+    await Clerk.load({
+      ui: { ClerkUI: window.__internal_ClerkUICtor },
+    });
+    return true;
+  } catch (error) {
+    console.error("Unable to load Clerk:", error);
+    return false;
+  }
+}
+
+const clerkReady = loadClerk();
+
+async function openSignIn() {
+  const ready = await clerkReady;
+
+  if (!ready) {
+    alert("Account sign-in is still loading. Please refresh the page and try again.");
+    return;
+  }
+
+  Clerk.openSignIn({
+    afterSignInUrl: `${window.location.origin}/account/`,
+    afterSignUpUrl: `${window.location.origin}/account/`,
   });
+}
 
-  const dialog = document.querySelector('#account-dialog');
+accountButton.addEventListener("click", async () => {
+  const ready = await clerkReady;
 
-  const paymentLinks = {
-    foundation: 'https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00',
-    performance: 'PASTE-YOUR-PERFORMANCE-STRIPE-LINK-HERE',
-    sessions: 'PASTE-YOUR-SESSIONS-STRIPE-LINK-HERE',
-  };
+  if (ready && Clerk.isSignedIn) {
+    window.location.href = "/account/";
+    return;
+  }
 
-  document.querySelector('[data-account]').addEventListener('click', () => {
-    if (Clerk.isSignedIn) {
-      window.location.href = '/account/';
-    } else {
-      Clerk.openSignIn({
-        afterSignInUrl: `${window.location.origin}/account/`,
-        afterSignUpUrl: `${window.location.origin}/account/`,
-      });
+  openSignIn();
+});
+
+closeButton.addEventListener("click", () => {
+  dialog.close();
+});
+
+signInButton.addEventListener("click", () => {
+  dialog.close();
+  openSignIn();
+});
+
+programmeButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const ready = await clerkReady;
+
+    if (!ready) {
+      alert("Account sign-in is still loading. Please refresh the page and try again.");
+      return;
     }
-  });
 
-  document.querySelector('.close').addEventListener('click', () => dialog.close());
+    if (!Clerk.isSignedIn) {
+      Clerk.openSignUp({
+        afterSignUpUrl: window.location.href,
+      });
+      return;
+    }
 
-  document.querySelector('[data-sign-in]').addEventListener('click', () => {
-    Clerk.openSignIn({
-      afterSignInUrl: `${window.location.origin}/account/`,
-      afterSignUpUrl: `${window.location.origin}/account/`,
-    });
-  });
+    const paymentLink = paymentLinks[button.dataset.programme];
 
-  document.querySelectorAll('.select-programme').forEach((button) => {
-    button.addEventListener('click', () => {
-      if (!Clerk.isSignedIn) {
-        Clerk.openSignUp({
-          afterSignUpUrl: window.location.href,
-        });
-        return;
-      }
+    if (!paymentLink || paymentLink.includes("PASTE-YOUR")) {
+      alert("Checkout is being configured. Please try again shortly.");
+      return;
+    }
 
-      window.location.assign(paymentLinks[button.dataset.programme]);
-    });
+    window.location.assign(paymentLink);
   });
 });

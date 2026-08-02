@@ -29,8 +29,9 @@
 <body>
   <header class="nav">
     <a class="wordmark" href="../index.html">FORM<span>/</span>FORWARD</a>
-    <div id="user-button"></div>
-    <a href="../index.html">Back to site</a>
+   <div id="user-button"></div>
+<button class="account" id="sign-out">Sign out</button>
+<a href="../index.html">Back to site</a>
   </header>
 
   <nav class="account-nav" aria-label="Account sections">
@@ -122,6 +123,10 @@
           `${Clerk.user.firstName || "Member"}.`;
 
         Clerk.mountUserButton(document.querySelector("#user-button"));
+        document.querySelector("#sign-out").addEventListener("click", async () => {
+  await Clerk.signOut();
+  window.location.href = "../";
+});
 
         const token = await Clerk.session.getToken();
 

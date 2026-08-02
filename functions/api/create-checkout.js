@@ -3,10 +3,14 @@ const CLERK_ISSUER = "https://hot-eft-0.clerk.accounts.dev";
 const SITE_ORIGIN = "https://pt-1.pages.dev";
 
 function decodeBase64Url(value) {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/") +
+  const padded =
+    value.replace(/-/g, "+").replace(/_/g, "/") +
     "=".repeat((4 - (value.length % 4)) % 4);
 
-  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  return Uint8Array.from(
+    atob(padded),
+    (character) => character.charCodeAt(0)
+  );
 }
 
 function parseJwt(token) {
@@ -17,8 +21,12 @@ function parseJwt(token) {
   }
 
   return {
-    header: JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[0]))),
-    payload: JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[1]))),
+    header: JSON.parse(
+      new TextDecoder().decode(decodeBase64Url(parts[0]))
+    ),
+    payload: JSON.parse(
+      new TextDecoder().decode(decodeBase64Url(parts[1]))
+    ),
     signedData: new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
     signature: decodeBase64Url(parts[2]),
   };
@@ -75,16 +83,20 @@ export async function onRequestPost({ request, env }) {
       return Response.json({ error: "Please sign in first." }, { status: 401 });
     }
 
-    const token = authorization.slice(7);
-    const user = await verifyClerkToken(token);
+    const user = await verifyClerkToken(authorization.slice(7));
 
     const form = new URLSearchParams({
       mode: "subscription",
+      phone_number_collection: "true",
+      billing_address_collection: "required",
+
       "line_items[0][price]": FOUNDATION_PRICE_ID,
       "line_items[0][quantity]": "1",
+
       "client_reference_id": user.sub,
       "metadata[clerk_user_id]": user.sub,
       "subscription_data[metadata][clerk_user_id]": user.sub,
+
       success_url: `${SITE_ORIGIN}/account/?payment=success`,
       cancel_url: `${SITE_ORIGIN}/#programmes`,
     });
@@ -105,6 +117,7 @@ export async function onRequestPost({ request, env }) {
 
     if (!stripeResponse.ok) {
       console.error(checkout);
+
       return Response.json(
         { error: "Unable to create checkout." },
         { status: 500 }
@@ -114,6 +127,7 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ url: checkout.url });
   } catch (error) {
     console.error(error);
+
     return Response.json(
       { error: "Unable to verify your account." },
       { status: 401 }

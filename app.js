@@ -10,30 +10,31 @@ const closeButton = document.querySelector(".close");
 const signInButton = document.querySelector("[data-sign-in]");
 const programmeButtons = document.querySelectorAll(".select-programme");
 
-async function loadClerk() {
-  if (!window.Clerk) {
-    console.error("Clerk did not load.");
-    return false;
-  }
+const clerkReady = new Promise((resolve) => {
+  window.addEventListener("load", async () => {
+    if (!window.Clerk) {
+      console.error("Clerk did not load.");
+      resolve(false);
+      return;
+    }
 
-  try {
-    await Clerk.load({
-      ui: { ClerkUI: window.__internal_ClerkUICtor },
-    });
-    return true;
-  } catch (error) {
-    console.error("Unable to load Clerk:", error);
-    return false;
-  }
-}
-
-const clerkReady = loadClerk();
+    try {
+      await Clerk.load({
+        ui: { ClerkUI: window.__internal_ClerkUICtor },
+      });
+      resolve(true);
+    } catch (error) {
+      console.error("Unable to load Clerk:", error);
+      resolve(false);
+    }
+  });
+});
 
 async function openSignIn() {
   const ready = await clerkReady;
 
   if (!ready) {
-    alert("Account sign-in is still loading. Please refresh the page and try again.");
+    alert("Sign-in could not load. Please refresh and try again.");
     return;
   }
 
@@ -54,9 +55,7 @@ accountButton.addEventListener("click", async () => {
   openSignIn();
 });
 
-closeButton.addEventListener("click", () => {
-  dialog.close();
-});
+closeButton.addEventListener("click", () => dialog.close());
 
 signInButton.addEventListener("click", () => {
   dialog.close();
@@ -68,7 +67,7 @@ programmeButtons.forEach((button) => {
     const ready = await clerkReady;
 
     if (!ready) {
-      alert("Account sign-in is still loading. Please refresh the page and try again.");
+      alert("Sign-in could not load. Please refresh and try again.");
       return;
     }
 

@@ -1,5 +1,5 @@
 const products = {
-  foundation: { price: 'price_REPLACE_FOUNDATION', mode: 'subscription' },
+  foundation: { price: 'prod_UzjaTVadYWuMD3', mode: 'subscription' },
   performance: { price: 'price_REPLACE_PERFORMANCE', mode: 'subscription' },
   sessions: { price: 'price_REPLACE_SESSION', mode: 'payment' },
 };

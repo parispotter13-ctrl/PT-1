@@ -2,7 +2,7 @@ import { getSignedInUserId } from "../lib/auth.js";
 
 export async function onRequestGet({ request, env }) {
   try {
-    const memberId = await getSignedInUserId(request);
+    const memberId = await getSignedInUserId(request, env);
 
     const admin = await env.DB.prepare(
       "SELECT member_id FROM admins WHERE member_id = ?"

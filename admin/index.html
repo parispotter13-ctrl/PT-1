@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — FORM/FORWARD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .admin{max-width:1200px;margin:auto;padding:70px 5vw}
+    .admin h1{font-size:clamp(42px,7vw,78px);letter-spacing:-.07em;line-height:.9;margin:25px 0 50px}
+    .orders{background:#fff;padding:25px}
+    .order{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:18px;padding:16px 0;border-bottom:1px solid #ddd}
+    .order:last-child{border-bottom:0}.label{font:11px 'DM Mono',monospace;color:var(--muted);text-transform:uppercase}
+    .status{font:11px 'DM Mono',monospace;text-transform:uppercase;color:#587700}
+    .error{background:#f2d8d3;padding:20px}
+    @media(max-width:700px){.order{grid-template-columns:1fr 1fr}.order .customer{grid-column:span 2}}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <a class="wordmark" href="../index.html">FORM<span>/</span>FORWARD</a>
+    <div id="user-button"></div>
+    <a href="../index.html">Back to site</a>
+  </header>
+
+  <main class="admin">
+    <p class="eyebrow">ADMINISTRATION</p>
+    <h1>Customer<br><em>orders.</em></h1>
+    <div id="content"><p class="empty">Loading orders…</p></div>
+  </main>
+
+  <script defer crossorigin="anonymous"
+    src="https://hot-eft-0.clerk.accounts.dev/npm/@clerk/ui@1/dist/ui.browser.js"
+    type="text/javascript"></script>
+
+  <script defer crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_aG90LWVmdC0wLmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://hot-eft-0.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+    type="text/javascript"></script>
+
+  <script>
+    const content = document.querySelector("#content");
+
+    function money(amount) {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP"
+      }).format((amount || 0) / 100);
+    }
+
+    window.addEventListener("load", async () => {
+      try {
+        await Clerk.load({
+          ui: { ClerkUI: window.__internal_ClerkUICtor }
+        });
+
+        if (!Clerk.isSignedIn) {
+          Clerk.openSignIn({
+            afterSignInUrl: window.location.href,
+            afterSignUpUrl: window.location.href
+          });
+          return;
+        }
+
+        Clerk.mountUserButton(document.querySelector("#user-button"));
+
+        const token = await Clerk.session.getToken();
+        const response = await fetch("/api/admin-orders", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.status === 403) {
+          content.innerHTML = '<div class="error">You do not have permission to view admin orders.</div>';
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("Orders could not be loaded.");
+        }
+
+        const { orders } = await response.json();
+
+        if (orders.length === 0) {
+          content.innerHTML = '<p class="empty">No customer orders yet.</p>';
+          return;
+        }
+
+        content.innerHTML = `
+          <div class="orders">
+            ${orders.map((order) => `
+              <div class="order">
+                <div class="customer">
+                  <div class="label">Customer</div>
+                  <strong>${order.name || order.email || order.member_id}</strong>
+                </div>
+                <div>
+                  <div class="label">Programme</div>
+                  <strong>${order.programme}</strong>
+                </div>
+                <div>
+                  <div class="label">Payment</div>
+                  <strong class="status">${order.status}</strong>
+                </div>
+                <div>
+                  <div class="label">Amount</div>
+                  <strong>${money(order.amount)}</strong>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } catch (error) {
+        console.error(error);
+        content.innerHTML = '<div class="error">Unable to load admin orders.</div>';
+      }
+    });
+  </script>
+</body>
+</html>
+          

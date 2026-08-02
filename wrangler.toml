@@ -1,6 +1,11 @@
 name = "form-forward"
+main = "src/index.js"
 compatibility_date = "2026-08-01"
-pages_build_output_dir = "."
+
+[assets]
+directory = "."
+binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"

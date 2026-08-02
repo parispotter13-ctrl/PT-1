@@ -70,7 +70,7 @@ async function getSignedInUserId(request) {
 
 export async function onRequestGet({ request, env }) {
   try {
-    const memberId = await getSignedInUserId(request);
+    const memberId = await getSignedInUserId(request, env);
 
     const orders = await env.DB.prepare(
       `SELECT programme, status, amount, created_at

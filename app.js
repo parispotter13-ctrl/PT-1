@@ -1,9 +1,3 @@
-const paymentLinks = {
-  foundation: "https://buy.stripe.com/test_5kQ6oJfEq5667Kq9L88Ra00",
-  performance: "PASTE-YOUR-PERFORMANCE-STRIPE-LINK-HERE",
-  sessions: "PASTE-YOUR-1-TO-1-SESSION-STRIPE-LINK-HERE",
-};
-
 const dialog = document.querySelector("#account-dialog");
 const accountButton = document.querySelector("[data-account]");
 const closeButton = document.querySelector(".close");
@@ -13,7 +7,6 @@ const programmeButtons = document.querySelectorAll(".select-programme");
 const clerkReady = new Promise((resolve) => {
   window.addEventListener("load", async () => {
     if (!window.Clerk) {
-      console.error("Clerk did not load.");
       resolve(false);
       return;
     }
@@ -78,13 +71,36 @@ programmeButtons.forEach((button) => {
       return;
     }
 
-    const paymentLink = paymentLinks[button.dataset.programme];
-
-    if (!paymentLink || paymentLink.includes("PASTE-YOUR")) {
-      alert("Checkout is being configured. Please try again shortly.");
+    if (button.dataset.programme !== "foundation") {
+      alert("This programme is coming soon.");
       return;
     }
 
-    window.location.assign(paymentLink);
+    button.disabled = true;
+    button.textContent = "Opening secure checkout…";
+
+    try {
+      const token = await Clerk.session.getToken();
+
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const checkout = await response.json();
+
+      if (!response.ok || !checkout.url) {
+        throw new Error(checkout.error || "Checkout could not be created.");
+      }
+
+      window.location.assign(checkout.url);
+    } catch (error) {
+      console.error(error);
+      alert("Checkout could not be opened. Please try again.");
+      button.disabled = false;
+      button.innerHTML = 'Choose <span>→</span>';
+    }
   });
 });

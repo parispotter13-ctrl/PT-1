@@ -28,6 +28,7 @@ async function verifyStripeSignature(request, body, secret) {
   if (!values.t || !values.v1) return false;
 
   const signedPayload = `${values.t}.${body}`;
+
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -59,43 +60,70 @@ export async function onRequestPost({ request, env }) {
   }
 
   const event = JSON.parse(body);
-  const session = event.data?.object;
+  const stripeObject = event.data?.object;
 
   if (event.type === "checkout.session.completed") {
     const clerkUserId =
-      session.metadata?.clerk_user_id || session.client_reference_id;
+      stripeObject.metadata?.clerk_user_id ||
+      stripeObject.client_reference_id;
 
     if (clerkUserId) {
+      const customer = stripeObject.customer_details || {};
+      const address = customer.address || {};
+
+      await env.DB.prepare(
+        `INSERT INTO members
+          (id, email, name, phone, address_line1, address_line2, city, postcode, country)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           email = excluded.email,
+           name = excluded.name,
+           phone = excluded.phone,
+           address_line1 = excluded.address_line1,
+           address_line2 = excluded.address_line2,
+           city = excluded.city,
+           postcode = excluded.postcode,
+           country = excluded.country`
+      )
+        .bind(
+          clerkUserId,
+          customer.email || `${clerkUserId}@unknown.local`,
+          customer.name || null,
+          customer.phone || null,
+          address.line1 || null,
+          address.line2 || null,
+          address.city || null,
+          address.postal_code || null,
+          address.country || null
+        )
+        .run();
+
       await env.DB.prepare(
         `INSERT OR REPLACE INTO orders
           (id, member_id, stripe_customer_id, stripe_session_id, programme, status, amount)
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
-          `order_${session.id}`,
+          `order_${stripeObject.id}`,
           clerkUserId,
-          session.customer || null,
-          session.id,
+          stripeObject.customer || null,
+          stripeObject.id,
           "Foundation",
-          session.payment_status === "paid" ? "paid" : "pending",
-          session.amount_total || 0
+          stripeObject.payment_status === "paid" ? "paid" : "pending",
+          stripeObject.amount_total || 0
         )
         .run();
     }
   }
 
   if (event.type === "invoice.paid") {
-    const clerkUserId = session.subscription_details?.metadata?.clerk_user_id;
-
-    if (clerkUserId) {
-      await env.DB.prepare(
-        `UPDATE orders
-         SET status = 'paid'
-         WHERE member_id = ? AND stripe_customer_id = ?`
-      )
-        .bind(clerkUserId, session.customer)
-        .run();
-    }
+    await env.DB.prepare(
+      `UPDATE orders
+       SET status = 'paid'
+       WHERE stripe_customer_id = ?`
+    )
+      .bind(stripeObject.customer)
+      .run();
   }
 
   if (event.type === "invoice.payment_failed") {
@@ -104,7 +132,7 @@ export async function onRequestPost({ request, env }) {
        SET status = 'payment_failed'
        WHERE stripe_customer_id = ?`
     )
-      .bind(session.customer)
+      .bind(stripeObject.customer)
       .run();
   }
 
@@ -114,7 +142,7 @@ export async function onRequestPost({ request, env }) {
        SET status = 'cancelled'
        WHERE stripe_customer_id = ?`
     )
-      .bind(session.customer)
+      .bind(stripeObject.customer)
       .run();
   }
 

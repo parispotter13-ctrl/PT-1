@@ -17,17 +17,15 @@ function safeEqual(left, right) {
 }
 
 async function verifyStripeSignature(request, body, secret) {
-  const signatureHeader = request.headers.get("Stripe-Signature");
+  const header = request.headers.get("Stripe-Signature");
 
-  if (!signatureHeader) return false;
+  if (!header) return false;
 
   const values = Object.fromEntries(
-    signatureHeader.split(",").map((part) => part.split("="))
+    header.split(",").map((part) => part.split("="))
   );
 
   if (!values.t || !values.v1) return false;
-
-  const signedPayload = `${values.t}.${body}`;
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -40,7 +38,7 @@ async function verifyStripeSignature(request, body, secret) {
   const signature = await crypto.subtle.sign(
     "HMAC",
     key,
-    new TextEncoder().encode(signedPayload)
+    new TextEncoder().encode(`${values.t}.${body}`)
   );
 
   return safeEqual(hex(signature), values.v1);
@@ -49,13 +47,7 @@ async function verifyStripeSignature(request, body, secret) {
 export async function onRequestPost({ request, env }) {
   const body = await request.text();
 
-  const valid = await verifyStripeSignature(
-    request,
-    body,
-    env.STRIPE_WEBHOOK_SECRET
-  );
-
-  if (!valid) {
+  if (!await verifyStripeSignature(request, body, env.STRIPE_WEBHOOK_SECRET)) {
     return new Response("Invalid Stripe signature", { status: 400 });
   }
 
@@ -63,11 +55,11 @@ export async function onRequestPost({ request, env }) {
   const stripeObject = event.data?.object;
 
   if (event.type === "checkout.session.completed") {
-    const clerkUserId =
+    const memberId =
       stripeObject.metadata?.clerk_user_id ||
       stripeObject.client_reference_id;
 
-    if (clerkUserId) {
+    if (memberId) {
       const customer = stripeObject.customer_details || {};
       const address = customer.address || {};
 
@@ -76,74 +68,82 @@ export async function onRequestPost({ request, env }) {
           (id, email, name, phone, address_line1, address_line2, city, postcode, country)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
-           email = excluded.email,
-           name = excluded.name,
-           phone = excluded.phone,
-           address_line1 = excluded.address_line1,
-           address_line2 = excluded.address_line2,
-           city = excluded.city,
-           postcode = excluded.postcode,
-           country = excluded.country`
-      )
-        .bind(
-          clerkUserId,
-          customer.email || `${clerkUserId}@unknown.local`,
-          customer.name || null,
-          customer.phone || null,
-          address.line1 || null,
-          address.line2 || null,
-          address.city || null,
-          address.postal_code || null,
-          address.country || null
-        )
-        .run();
+           email=excluded.email, name=excluded.name, phone=excluded.phone,
+           address_line1=excluded.address_line1, address_line2=excluded.address_line2,
+           city=excluded.city, postcode=excluded.postcode, country=excluded.country`
+      ).bind(
+        memberId,
+        customer.email || `${memberId}@unknown.local`,
+        customer.name || null,
+        customer.phone || null,
+        address.line1 || null,
+        address.line2 || null,
+        address.city || null,
+        address.postal_code || null,
+        address.country || null
+      ).run();
 
       await env.DB.prepare(
         `INSERT OR REPLACE INTO orders
-          (id, member_id, stripe_customer_id, stripe_session_id, programme, status, amount)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-        .bind(
-          `order_${stripeObject.id}`,
-          clerkUserId,
-          stripeObject.customer || null,
-          stripeObject.id,
-          "Foundation",
-          stripeObject.payment_status === "paid" ? "paid" : "pending",
-          stripeObject.amount_total || 0
-        )
-        .run();
+          (id, member_id, stripe_customer_id, stripe_session_id,
+           stripe_payment_intent_id, stripe_subscription_id,
+           programme, status, amount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        `order_${stripeObject.id}`,
+        memberId,
+        stripeObject.customer || null,
+        stripeObject.id,
+        stripeObject.payment_intent || null,
+        stripeObject.subscription || null,
+        "Foundation",
+        stripeObject.payment_status === "paid" ? "paid" : "pending",
+        stripeObject.amount_total || 0
+      ).run();
     }
   }
 
   if (event.type === "invoice.paid") {
     await env.DB.prepare(
       `UPDATE orders
-       SET status = 'paid'
-       WHERE stripe_customer_id = ?`
-    )
-      .bind(stripeObject.customer)
-      .run();
+       SET status='paid', stripe_payment_intent_id=?
+       WHERE stripe_subscription_id=?`
+    ).bind(
+      stripeObject.payment_intent || null,
+      stripeObject.subscription || null
+    ).run();
   }
 
   if (event.type === "invoice.payment_failed") {
     await env.DB.prepare(
       `UPDATE orders
-       SET status = 'payment_failed'
-       WHERE stripe_customer_id = ?`
-    )
-      .bind(stripeObject.customer)
-      .run();
+       SET status='payment_failed'
+       WHERE stripe_subscription_id=?`
+    ).bind(stripeObject.subscription || null).run();
   }
 
   if (event.type === "customer.subscription.deleted") {
     await env.DB.prepare(
       `UPDATE orders
-       SET status = 'cancelled'
-       WHERE stripe_customer_id = ?`
-    )
-      .bind(stripeObject.customer)
-      .run();
+       SET status='cancelled'
+       WHERE stripe_subscription_id=?`
+    ).bind(stripeObject.id).run();
+  }
+
+  if (event.type === "charge.refunded") {
+    const order = await env.DB.prepare(
+      `SELECT id, amount
+       FROM orders
+       WHERE stripe_payment_intent_id=?`
+    ).bind(stripeObject.payment_intent || null).first();
+
+    if (order && stripeObject.amount_refunded >= order.amount) {
+      await env.DB.prepare(
+        `UPDATE orders
+         SET status='refunded'
+         WHERE id=?`
+      ).bind(order.id).run();
+    }
   }
 
   return new Response("OK", { status: 200 });

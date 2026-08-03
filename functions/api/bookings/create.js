@@ -1,22 +1,37 @@
-import { z } from "zod";
 import { getSignedInUserId } from "../../lib/auth.js";
-
-const inputSchema = z.object({
-  startsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/),
-  programme: z.string().min(1).max(100).default("Foundation"),
-});
 
 function addMinutes(startsAt, minutes) {
   const date = new Date(`${startsAt}Z`);
   date.setUTCMinutes(date.getUTCMinutes() + minutes);
-
   return date.toISOString().replace(".000Z", "");
+}
+
+function isValidInput(input) {
+  return (
+    input &&
+    typeof input.startsAt === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(input.startsAt) &&
+    typeof input.programme === "string" &&
+    input.programme.length > 0 &&
+    input.programme.length <= 100
+  );
 }
 
 export async function onRequestPost({ request, env }) {
   try {
     const memberId = await getSignedInUserId(request, env);
-    const input = inputSchema.parse(await request.json());
+    const input = await request.json();
+
+    if (!isValidInput(input)) {
+      return Response.json(
+        {
+          success: false,
+          data: null,
+          error: { code: "INVALID_INPUT", message: "Invalid booking details." },
+        },
+        { status: 400 }
+      );
+    }
 
     const date = new Date(`${input.startsAt}Z`);
     const weekday = date.getUTCDay();
@@ -71,11 +86,9 @@ export async function onRequestPost({ request, env }) {
     }
 
     const existingBooking = await env.DB.prepare(
-      `SELECT id
-       FROM bookings
-       WHERE member_id = ?
-         AND programme = ?
-         AND status IN ('pending', 'confirmed')
+      `SELECT id FROM bookings
+       WHERE member_id = ? AND programme = ?
+       AND status IN ('pending', 'confirmed')
        LIMIT 1`
     )
       .bind(memberId, input.programme)
@@ -114,11 +127,7 @@ export async function onRequestPost({ request, env }) {
 
     return Response.json({
       success: true,
-      data: {
-        startsAt: input.startsAt,
-        endsAt,
-        status: "confirmed",
-      },
+      data: { startsAt: input.startsAt, endsAt, status: "confirmed" },
       error: null,
     });
   } catch (error) {

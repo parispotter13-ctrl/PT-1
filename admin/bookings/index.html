@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin bookings — FORM/FORWARD</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    .admin{max-width:1100px;margin:auto;padding:70px 5vw}
+    .admin h1{font-size:clamp(42px,7vw,76px);letter-spacing:-.07em;line-height:.9}
+    .day{background:#fff;margin:18px 0;padding:24px;border-radius:12px}
+    .booking{display:grid;grid-template-columns:130px 1fr auto;gap:18px;padding:16px 0;border-top:1px solid #ddd}
+    .booking:first-of-type{border-top:0}.muted{color:var(--muted)}.status{font:11px monospace;text-transform:uppercase;color:#587700}
+    .error{background:#f2d8d3;padding:18px}@media(max-width:650px){.booking{grid-template-columns:1fr}.booking>*{grid-column:1}}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <a class="wordmark" href="../../index.html">FORM<span>/</span>FORWARD</a>
+    <a href="../index.html">Admin orders</a>
+  </header>
+
+  <main class="admin">
+    <p class="eyebrow">ADMINISTRATION</p>
+    <h1>Booking<br><em>calendar.</em></h1>
+    <div id="calendar"><p class="muted">Loading bookings…</p></div>
+  </main>
+
+  <script defer crossorigin="anonymous"
+    src="https://hot-eft-0.clerk.accounts.dev/npm/@clerk/ui@1/dist/ui.browser.js"
+    type="text/javascript"></script>
+
+  <script defer crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_aG90LWVmdC0wLmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://hot-eft-0.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+    type="text/javascript"></script>
+
+  <script>
+    const calendar = document.querySelector("#calendar");
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    window.addEventListener("load", async () => {
+      try {
+        await Clerk.load({
+          ui: { ClerkUI: window.__internal_ClerkUICtor }
+        });
+
+        if (!Clerk.isSignedIn) {
+          Clerk.openSignIn({
+            afterSignInUrl: window.location.href,
+            afterSignUpUrl: window.location.href
+          });
+          return;
+        }
+
+        const token = await Clerk.session.getToken();
+
+        const response = await fetch("/api/admin-bookings", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (response.status === 403) {
+          calendar.innerHTML =
+            '<div class="error">You do not have permission to view bookings.</div>';
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(result.error?.message || "Unable to load bookings.");
+        }
+
+        const groups = result.data.bookings.reduce((all, booking) => {
+          const date = booking.starts_at.slice(0, 10);
+          (all[date] ||= []).push(booking);
+          return all;
+        }, {});
+
+        if (Object.keys(groups).length === 0) {
+          calendar.innerHTML =
+            '<p class="muted">There are no confirmed bookings yet.</p>';
+          return;
+        }
+
+        calendar.innerHTML = Object.entries(groups).map(([date, bookings]) => `
+          <section class="day">
+            <h2>${new Date(date + "T12:00:00Z").toLocaleDateString("en-GB", {
+              weekday: "long", day: "numeric", month: "long", year: "numeric",
+              timeZone: "Europe/London"
+            })}</h2>
+
+            ${bookings.map(booking => `
+              <article class="booking">
+                <strong>${booking.starts_at.slice(11, 16)}–${booking.ends_at.slice(11, 16)}</strong>
+                <div>
+                  <strong>${escapeHtml(booking.customer_name || "Customer")}</strong><br>
+                  <span class="muted">${escapeHtml(booking.customer_email)} · ${escapeHtml(booking.customer_phone)}</span><br>
+                  <span class="muted">${escapeHtml(booking.programme)}</span>
+                </div>
+                <div>
+                  <span class="status">${escapeHtml(booking.status)}</span><br>
+                  <span class="status">${escapeHtml(booking.payment_status || "payment pending")}</span>
+                </div>
+              </article>
+            `).join("")}
+          </section>
+        `).join("");
+      } catch (error) {
+        console.error(error
